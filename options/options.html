@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlindTab — Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <svg class="logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17 11H7V8a5 5 0 0 1 10 0v3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" opacity="0.15"/>
+        <rect x="5" y="11" width="14" height="10" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+      </svg>
+      <div>
+        <h1>BlindTab</h1>
+        <p class="subtitle">Settings</p>
+      </div>
+    </header>
+
+    <!-- Password Section -->
+    <section class="card">
+      <h2>Password</h2>
+      <div id="password-status" class="status-banner unset">
+        No password set. All protected URLs are inaccessible until you set one.
+      </div>
+
+      <div class="form-group">
+        <label for="current-password">Current password</label>
+        <input type="password" id="current-password" placeholder="Leave blank if none set" autocomplete="current-password" />
+      </div>
+      <div class="form-group">
+        <label for="new-password">New password</label>
+        <input type="password" id="new-password" placeholder="Enter new password" autocomplete="new-password" />
+      </div>
+      <div class="form-group">
+        <label for="confirm-password">Confirm new password</label>
+        <input type="password" id="confirm-password" placeholder="Repeat new password" autocomplete="new-password" />
+      </div>
+      <div id="password-error" class="error-msg hidden"></div>
+      <button id="save-password-btn" class="btn primary">Save Password</button>
+    </section>
+
+    <!-- Protected URLs Section -->
+    <section class="card">
+      <h2>Protected URLs</h2>
+      <p class="section-desc">Pages on this list will show a blur overlay until unlocked with your password.</p>
+
+      <div class="add-url-form">
+        <input type="url" id="url-input" placeholder="https://example.com/secret-page" autocomplete="off" />
+        <button id="use-current-btn" class="btn secondary small" title="Fill with current tab URL">
+          Current tab
+        </button>
+        <button id="add-url-btn" class="btn primary small">Add</button>
+      </div>
+      <div id="url-error" class="error-msg hidden"></div>
+
+      <div id="url-list-wrap">
+        <p id="empty-state" class="empty-state hidden">No protected URLs yet.</p>
+        <ul id="url-list" class="url-list"></ul>
+      </div>
+    </section>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

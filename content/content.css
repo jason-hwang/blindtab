@@ -1,0 +1,120 @@
+#bt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+#bt-card {
+  background: #ffffff;
+  border: 1px solid #000000;
+  border-radius: 0;
+  padding: 32px 28px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+#bt-icon {
+  width: 32px;
+  height: 32px;
+  color: #000000;
+}
+
+#bt-title {
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#bt-subtitle {
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-size: 11px;
+  color: #666666;
+  margin: -8px 0 0;
+  text-align: center;
+}
+
+#bt-input-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#bt-password {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border-radius: 0;
+  border: 1px solid #000000;
+  background: #ffffff;
+  color: #000000;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-size: 13px;
+  outline: none;
+}
+
+#bt-password::placeholder {
+  color: #999999;
+}
+
+#bt-password:focus {
+  outline: 2px solid #000000;
+  outline-offset: -2px;
+}
+
+#bt-unlock-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: 0;
+  border: 1px solid #000000;
+  background: #000000;
+  color: #ffffff;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+#bt-unlock-btn:hover {
+  background: #333333;
+}
+
+#bt-unlock-btn:active {
+  background: #000000;
+}
+
+#bt-error {
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-size: 11px;
+  color: #cc0000;
+  text-align: center;
+  min-height: 16px;
+}
+
+@keyframes bt-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.bt-shake {
+  animation: bt-shake 0.4s ease-in-out;
+}
