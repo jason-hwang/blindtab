@@ -32,6 +32,15 @@
       <span id="toggle-label">Loading…</span>
     </button>
 
+    <div id="auth-section" class="auth-section hidden">
+      <p class="auth-message">Enter your password to remove protection.</p>
+      <div class="auth-input-row">
+        <input id="auth-password" type="password" placeholder="Password" autocomplete="current-password" spellcheck="false" />
+        <button id="auth-confirm-btn">Confirm</button>
+      </div>
+      <p id="auth-error" class="auth-error"></p>
+    </div>
+
     <footer>
       <a id="go-options" href="#">Manage all protected URLs →</a>
     </footer>

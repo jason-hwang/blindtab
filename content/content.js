@@ -74,10 +74,30 @@
     btn.addEventListener('click', () => attemptUnlock(input, errorEl));
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') attemptUnlock(input, errorEl);
+      // Prevent all key events from reaching the underlying page
+      e.stopPropagation();
     });
 
-    // Auto-focus after a short delay to avoid being overridden by the page
-    setTimeout(() => input.focus(), 100);
+    // Intercept all keyboard events at capture phase so page handlers never fire
+    overlay.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+    }, true);
+    overlay.addEventListener('keyup', (e) => {
+      e.stopPropagation();
+    }, true);
+    overlay.addEventListener('keypress', (e) => {
+      e.stopPropagation();
+    }, true);
+
+    // Refocus input if focus leaves the overlay while it is active
+    overlay.addEventListener('focusout', (e) => {
+      if (!overlay.contains(e.relatedTarget)) {
+        input.focus();
+      }
+    });
+
+    // Auto-focus immediately; the overlay is already in the DOM at this point
+    input.focus();
   }
 
   function removeOverlay() {
@@ -165,9 +185,9 @@
     checkAndProtect(window.location.href);
   });
 
-  // ── Message listener (from service worker) ──────────────────────────────────
+  // ── Message listener (from service worker / popup) ──────────────────────────
 
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'CHECK_URL') {
       // Hard navigation detected; reset unlock state for new page context
       unlocked = false;
@@ -176,6 +196,18 @@
     if (message.type === 'STORAGE_CHANGED') {
       // Protected URL list or password changed; re-evaluate
       checkAndProtect(window.location.href);
+    }
+    if (message.type === 'GET_UNLOCK_STATE') {
+      // Popup queries whether this tab is currently unlocked
+      sendResponse({ unlocked });
+      return true;
+    }
+    if (message.type === 'UNLOCK_AND_REMOVE_OVERLAY') {
+      // Popup has verified the password and requests overlay removal
+      unlocked = true;
+      removeOverlay();
+      sendResponse({ ok: true });
+      return true;
     }
   });
 
