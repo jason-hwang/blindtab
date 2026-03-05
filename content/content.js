@@ -26,7 +26,10 @@
 
   // ── State ───────────────────────────────────────────────────────────────────
 
-  let unlocked = false; // Per-tab unlock state (lives in this script context)
+  let unlocked = false;          // Per-tab unlock state (lives in this script context)
+  let tempUnlockTimer = null;    // Timer ID for 5-minute temp unlock
+  let tempUnlockInterval = null; // Interval ID for countdown display
+  let tempUnlockEndTime = null;  // Timestamp (ms) when temp unlock expires
 
   // ── Overlay ─────────────────────────────────────────────────────────────────
 
@@ -58,6 +61,10 @@
             autocomplete="current-password"
             spellcheck="false"
           />
+          <label id="bt-temp-label">
+            <input type="checkbox" id="bt-temp-unlock" />
+            <span>Keep unlocked for 5 minutes</span>
+          </label>
           <button id="bt-unlock-btn">Unlock</button>
         </div>
         <p id="bt-error"></p>
@@ -73,14 +80,16 @@
 
     btn.addEventListener('click', () => attemptUnlock(input, errorEl));
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') attemptUnlock(input, errorEl);
-      // Prevent all key events from reaching the underlying page
-      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.stopPropagation();
+        attemptUnlock(input, errorEl);
+      }
     });
 
-    // Intercept all keyboard events at capture phase so page handlers never fire
+    // Intercept all keyboard events at capture phase so page handlers never fire.
+    // Enter is excluded here so it can bubble to the input's own keydown handler.
     overlay.addEventListener('keydown', (e) => {
-      e.stopPropagation();
+      if (e.key !== 'Enter') e.stopPropagation();
     }, true);
     overlay.addEventListener('keyup', (e) => {
       e.stopPropagation();
@@ -120,16 +129,83 @@
     const inputHash = await sha256(password);
 
     if (inputHash === passwordHash) {
+      const isTempUnlock = document.getElementById('bt-temp-unlock')?.checked ?? false;
       unlocked = true;
       input.value = '';
       errorEl.textContent = '';
       removeOverlay();
+      if (isTempUnlock) startTempUnlock();
     } else {
       input.value = '';
       errorEl.textContent = 'Incorrect password. Try again.';
       shakeCard();
       input.focus();
     }
+  }
+
+  // ── Temp unlock (5-minute timer) ────────────────────────────────────────────
+
+  function startTempUnlock() {
+    clearTempUnlock();
+    tempUnlockEndTime = Date.now() + 5 * 60 * 1000;
+    createFloatingBtn();
+    updateFloatingBtnTime();
+    tempUnlockInterval = setInterval(updateFloatingBtnTime, 1000);
+    tempUnlockTimer = setTimeout(lockPage, 5 * 60 * 1000);
+  }
+
+  function clearTempUnlock() {
+    if (tempUnlockTimer) {
+      clearTimeout(tempUnlockTimer);
+      tempUnlockTimer = null;
+    }
+    if (tempUnlockInterval) {
+      clearInterval(tempUnlockInterval);
+      tempUnlockInterval = null;
+    }
+    tempUnlockEndTime = null;
+    removeFloatingBtn();
+  }
+
+  function updateFloatingBtnTime() {
+    const timeEl = document.getElementById('bt-float-time');
+    if (!timeEl || tempUnlockEndTime === null) return;
+    const remaining = Math.max(0, tempUnlockEndTime - Date.now());
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    timeEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  function lockPage() {
+    clearTempUnlock();
+    unlocked = false;
+    checkAndProtect(window.location.href);
+  }
+
+  // ── Floating re-lock button ──────────────────────────────────────────────────
+
+  function createFloatingBtn() {
+    if (document.getElementById('bt-float-btn')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'bt-float-btn';
+    btn.setAttribute('aria-label', 'Lock page now');
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M17 11H7V8a5 5 0 0 1 10 0v3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" opacity="0.2"/>
+        <rect x="5" y="11" width="14" height="10" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+      </svg>
+      <span id="bt-float-time">5:00</span>
+    `;
+    btn.addEventListener('click', lockPage);
+    document.documentElement.appendChild(btn);
+  }
+
+  function removeFloatingBtn() {
+    const btn = document.getElementById('bt-float-btn');
+    if (btn) btn.remove();
   }
 
   function shakeCard() {
@@ -171,6 +247,7 @@
       history[method] = function (...args) {
         const result = original.apply(this, args);
         // After pushState/replaceState the URL has changed; re-lock if needed
+        clearTempUnlock();
         unlocked = false;
         checkAndProtect(window.location.href);
         return result;
@@ -181,6 +258,7 @@
   }
 
   window.addEventListener('popstate', () => {
+    clearTempUnlock();
     unlocked = false;
     checkAndProtect(window.location.href);
   });
@@ -190,6 +268,7 @@
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'CHECK_URL') {
       // Hard navigation detected; reset unlock state for new page context
+      clearTempUnlock();
       unlocked = false;
       checkAndProtect(message.url || window.location.href);
     }
