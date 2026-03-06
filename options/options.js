@@ -3,6 +3,15 @@
 
   // ── Utilities ──────────────────────────────────────────────────────────────
 
+  // Entry helpers (backward-compat with old string format)
+  function entryUrl(entry) {
+    return typeof entry === 'string' ? entry : entry.url;
+  }
+
+  function entryMatchSubpaths(entry) {
+    return typeof entry === 'string' ? false : (entry.matchSubpaths ?? false);
+  }
+
   async function sha256(message) {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -141,46 +150,56 @@
     }
 
     const { protectedUrls = [] } = await chrome.storage.sync.get('protectedUrls');
-    if (protectedUrls.some(u => normalizeUrl(u) === normalized)) {
+    if (protectedUrls.some(e => normalizeUrl(entryUrl(e)) === normalized)) {
       return showError(errorEl, 'This URL is already in the list.');
     }
 
-    const updated = [...protectedUrls, normalized];
+    const updated = [...protectedUrls, { url: normalized, matchSubpaths: false }];
     await chrome.storage.sync.set({ protectedUrls: updated });
     urlInput.value = '';
     renderList(listEl, emptyState, updated);
   }
 
-  async function deleteUrl(url, listEl, emptyState) {
+  async function deleteUrl(entry, listEl, emptyState) {
     const { protectedUrls = [] } = await chrome.storage.sync.get('protectedUrls');
-    const normalized = normalizeUrl(url);
-    const updated = protectedUrls.filter(u => normalizeUrl(u) !== normalized);
+    const targetUrl = normalizeUrl(entryUrl(entry));
+    const updated = protectedUrls.filter(e => normalizeUrl(entryUrl(e)) !== targetUrl);
     await chrome.storage.sync.set({ protectedUrls: updated });
     renderList(listEl, emptyState, updated);
   }
 
-  function renderList(listEl, emptyState, urls) {
+  function renderList(listEl, emptyState, entries) {
     listEl.innerHTML = '';
 
-    if (urls.length === 0) {
+    if (entries.length === 0) {
       emptyState.classList.remove('hidden');
       return;
     }
     emptyState.classList.add('hidden');
 
-    for (const url of urls) {
+    for (const entry of entries) {
       const li = document.createElement('li');
 
-      const span = document.createElement('span');
-      span.className = 'url-text';
-      span.textContent = url;
+      const textWrap = document.createElement('span');
+      textWrap.className = 'url-text';
+
+      const urlSpan = document.createElement('span');
+      urlSpan.textContent = entryUrl(entry);
+      textWrap.appendChild(urlSpan);
+
+      if (entryMatchSubpaths(entry)) {
+        const badge = document.createElement('span');
+        badge.className = 'subpath-badge';
+        badge.textContent = '+subpaths';
+        textWrap.appendChild(badge);
+      }
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
       deleteBtn.textContent = 'Remove';
-      deleteBtn.addEventListener('click', () => deleteUrl(url, listEl, emptyState));
+      deleteBtn.addEventListener('click', () => deleteUrl(entry, listEl, emptyState));
 
-      li.appendChild(span);
+      li.appendChild(textWrap);
       li.appendChild(deleteBtn);
       listEl.appendChild(li);
     }

@@ -13,6 +13,29 @@
     }
   }
 
+  // ── Entry helpers (backward-compat with old string format) ─────────────────
+
+  function entryUrl(entry) {
+    return typeof entry === 'string' ? entry : entry.url;
+  }
+
+  function entryMatchSubpaths(entry) {
+    return typeof entry === 'string' ? false : (entry.matchSubpaths ?? false);
+  }
+
+  function isUrlMatch(entry, targetUrl) {
+    const base = normalizeUrl(entryUrl(entry));
+    if (entryMatchSubpaths(entry)) {
+      return targetUrl === base
+        || targetUrl.startsWith(base + '/')
+        || targetUrl.startsWith(base + '?')
+        || targetUrl.startsWith(base + '#');
+    }
+    return targetUrl === base;
+  }
+
+  // ── Utilities ──────────────────────────────────────────────────────────────
+
   async function sha256(message) {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -24,15 +47,16 @@
   async function getTabUnlockState(tabId) {
     try {
       const response = await chrome.tabs.sendMessage(tabId, { type: 'GET_UNLOCK_STATE' });
-      return response?.unlocked ?? true; // If no content script (e.g. chrome:// page), treat as unlocked
+      return response?.unlocked ?? true;
     } catch {
-      return true; // Content script not injected — no overlay active
+      return true;
     }
   }
 
   async function removeProtection(tabId, currentUrl) {
     const { protectedUrls: current = [] } = await chrome.storage.sync.get('protectedUrls');
-    const updated = current.filter(u => normalizeUrl(u) !== currentUrl);
+    // Remove whichever entry covers currentUrl (exact or via subpath parent)
+    const updated = current.filter(e => !isUrlMatch(e, currentUrl));
     await chrome.storage.sync.set({ protectedUrls: updated });
     chrome.tabs.sendMessage(tabId, { type: 'STORAGE_CHANGED' }).catch(() => {});
   }
@@ -44,6 +68,8 @@
     const noBanner = document.getElementById('no-password-banner');
     const goOptions = document.getElementById('go-options');
     const goOptionsBanner = document.getElementById('go-options-banner');
+    const subpathSection = document.getElementById('subpath-section');
+    const subpathCheckbox = document.getElementById('subpath-checkbox');
     const authSection = document.getElementById('auth-section');
     const authPassword = document.getElementById('auth-password');
     const authConfirmBtn = document.getElementById('auth-confirm-btn');
@@ -74,8 +100,9 @@
       noBanner.classList.remove('hidden');
     }
 
-    const isProtected = protectedUrls.some(u => normalizeUrl(u) === currentUrl);
+    const isProtected = protectedUrls.some(e => isUrlMatch(e, currentUrl));
     updateButton(toggleBtn, toggleLabel, isProtected);
+    updateSubpathSection(subpathSection, isProtected);
     toggleBtn.disabled = false;
 
     // ── Auth section: verify password then remove protection ─────────────────
@@ -110,6 +137,7 @@
       authSection.classList.add('hidden');
       authPassword.value = '';
       updateButton(toggleBtn, toggleLabel, false);
+      updateSubpathSection(subpathSection, false);
       toggleBtn.disabled = false;
     }
 
@@ -122,15 +150,18 @@
 
     toggleBtn.addEventListener('click', async () => {
       const { protectedUrls: current = [] } = await chrome.storage.sync.get('protectedUrls');
-      const currentlyProtected = current.some(u => normalizeUrl(u) === currentUrl);
+      const currentlyProtected = current.some(e => isUrlMatch(e, currentUrl));
 
       // Adding protection — no auth needed
       if (!currentlyProtected) {
         toggleBtn.disabled = true;
-        const updated = [...current, currentUrl];
+        const matchSubpaths = subpathCheckbox.checked;
+        const updated = [...current, { url: currentUrl, matchSubpaths }];
         await chrome.storage.sync.set({ protectedUrls: updated });
         chrome.tabs.sendMessage(tab.id, { type: 'STORAGE_CHANGED' }).catch(() => {});
         updateButton(toggleBtn, toggleLabel, true);
+        updateSubpathSection(subpathSection, true);
+        subpathCheckbox.checked = false;
         toggleBtn.disabled = false;
         return;
       }
@@ -138,7 +169,6 @@
       // Removing protection — check if page is currently locked
       const isUnlocked = await getTabUnlockState(tab.id);
       if (!isUnlocked) {
-        // Page is still locked: require password verification in popup
         authSection.classList.remove('hidden');
         authPassword.value = '';
         authError.textContent = '';
@@ -146,10 +176,11 @@
         return;
       }
 
-      // Page already unlocked by the user — allow direct removal
+      // Page already unlocked — allow direct removal
       toggleBtn.disabled = true;
       await removeProtection(tab.id, currentUrl);
       updateButton(toggleBtn, toggleLabel, false);
+      updateSubpathSection(subpathSection, false);
       toggleBtn.disabled = false;
     });
   }
@@ -178,6 +209,14 @@
     } else {
       btn.className = 'toggle-btn unprotected';
       label.innerHTML = `${ICON_LOCKED}<span>Protect This Page</span>`;
+    }
+  }
+
+  function updateSubpathSection(section, isProtected) {
+    if (isProtected) {
+      section.classList.add('hidden');
+    } else {
+      section.classList.remove('hidden');
     }
   }
 

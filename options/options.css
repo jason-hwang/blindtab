@@ -234,6 +234,21 @@ input::placeholder {
   word-break: break-all;
   flex: 1;
   line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.url-list .subpath-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #555555;
+  background: #eeeeee;
+  border: 1px solid #cccccc;
+  padding: 1px 5px;
+  align-self: flex-start;
 }
 
 .url-list .delete-btn {

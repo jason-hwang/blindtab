@@ -24,6 +24,27 @@
     }
   }
 
+  // ── Entry helpers (backward-compat with old string format) ─────────────────
+
+  function entryUrl(entry) {
+    return typeof entry === 'string' ? entry : entry.url;
+  }
+
+  function entryMatchSubpaths(entry) {
+    return typeof entry === 'string' ? false : (entry.matchSubpaths ?? false);
+  }
+
+  function isUrlMatch(entry, targetUrl) {
+    const base = normalizeUrl(entryUrl(entry));
+    if (entryMatchSubpaths(entry)) {
+      return targetUrl === base
+        || targetUrl.startsWith(base + '/')
+        || targetUrl.startsWith(base + '?')
+        || targetUrl.startsWith(base + '#');
+    }
+    return targetUrl === base;
+  }
+
   // ── State ───────────────────────────────────────────────────────────────────
 
   let unlocked = false;          // Per-tab unlock state (lives in this script context)
@@ -225,7 +246,7 @@
 
     const { protectedUrls = [] } = await chrome.storage.sync.get('protectedUrls');
     const normalized = normalizeUrl(url);
-    const isProtected = protectedUrls.some(u => normalizeUrl(u) === normalized);
+    const isProtected = protectedUrls.some(e => isUrlMatch(e, normalized));
 
     if (isProtected) {
       // Ensure DOM is ready before inserting overlay
