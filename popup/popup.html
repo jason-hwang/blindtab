@@ -19,12 +19,12 @@
     </header>
 
     <div id="no-password-banner" class="banner hidden">
-      <span>⚠️ No password set.</span>
-      <a id="go-options-banner" href="#">Set up now →</a>
+      <span data-i18n="noBannerText">⚠️ No password set.</span>
+      <a id="go-options-banner" href="#" data-i18n="setUpNow">Set up now →</a>
     </div>
 
     <div class="url-section">
-      <p class="label">Current page</p>
+      <p class="label" data-i18n="currentPage">Current page</p>
       <p id="current-url" class="url-display">Loading…</p>
     </div>
 
@@ -35,24 +35,25 @@
     <div id="subpath-section" class="subpath-section hidden">
       <label id="subpath-label">
         <input type="checkbox" id="subpath-checkbox" />
-        <span>Also lock subpaths</span>
+        <span data-i18n="alsoLockSubpaths">Also lock subpaths</span>
       </label>
     </div>
 
     <div id="auth-section" class="auth-section hidden">
-      <p class="auth-message">Enter your password to remove protection.</p>
+      <p class="auth-message" data-i18n="authMessage">Enter your password to remove protection.</p>
       <div class="auth-input-row">
-        <input id="auth-password" type="password" placeholder="Password" autocomplete="current-password" spellcheck="false" />
-        <button id="auth-confirm-btn">Confirm</button>
+        <input id="auth-password" type="password" autocomplete="current-password" spellcheck="false" />
+        <button id="auth-confirm-btn" data-i18n="confirm">Confirm</button>
       </div>
       <p id="auth-error" class="auth-error"></p>
     </div>
 
     <footer>
-      <a id="go-options" href="#">Manage all protected URLs →</a>
+      <a id="go-options" href="#" data-i18n="manageUrls">Manage all protected URLs →</a>
     </footer>
   </div>
 
+  <script src="../shared/i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

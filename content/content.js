@@ -45,6 +45,23 @@
     return targetUrl === base;
   }
 
+  // ── i18n ───────────────────────────────────────────────────────────────────
+
+  let lang = 'en';
+
+  function t(key) {
+    return window.BT_T ? window.BT_T(lang, key) : key;
+  }
+
+  async function initLanguage() {
+    const { language } = await chrome.storage.sync.get('language');
+    if (language) {
+      lang = language;
+    } else {
+      lang = navigator.language.startsWith('ko') ? 'ko' : 'en';
+    }
+  }
+
   // ── State ───────────────────────────────────────────────────────────────────
 
   let unlocked = false;          // Per-tab unlock state (lives in this script context)
@@ -72,21 +89,21 @@
                 stroke="currentColor" stroke-width="1.8"/>
           <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
         </svg>
-        <p id="bt-title">This page is protected</p>
-        <p id="bt-subtitle">Enter your password to unlock</p>
+        <p id="bt-title">${t('pageProtected')}</p>
+        <p id="bt-subtitle">${t('enterToUnlock')}</p>
         <div id="bt-input-wrap">
           <input
             id="bt-password"
             type="password"
-            placeholder="Password"
+            placeholder="${t('passwordPlaceholder')}"
             autocomplete="current-password"
             spellcheck="false"
           />
           <label id="bt-temp-label">
             <input type="checkbox" id="bt-temp-unlock" />
-            <span>Keep unlocked for 5 minutes</span>
+            <span>${t('keepUnlocked5min')}</span>
           </label>
-          <button id="bt-unlock-btn">Unlock</button>
+          <button id="bt-unlock-btn">${t('unlock')}</button>
         </div>
         <p id="bt-error"></p>
       </div>
@@ -142,7 +159,7 @@
     const { passwordHash } = await chrome.storage.sync.get('passwordHash');
 
     if (!passwordHash) {
-      errorEl.textContent = 'No password set. Configure in extension options.';
+      errorEl.textContent = t('noPasswordSetConfig');
       shakeCard();
       return;
     }
@@ -158,7 +175,7 @@
       if (isTempUnlock) startTempUnlock();
     } else {
       input.value = '';
-      errorEl.textContent = 'Incorrect password. Try again.';
+      errorEl.textContent = t('incorrectPasswordRetry');
       shakeCard();
       input.focus();
     }
@@ -210,7 +227,7 @@
 
     const btn = document.createElement('button');
     btn.id = 'bt-float-btn';
-    btn.setAttribute('aria-label', 'Lock page now');
+    btn.setAttribute('aria-label', t('lockPageNow'));
     btn.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <path d="M17 11H7V8a5 5 0 0 1 10 0v3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
@@ -294,8 +311,9 @@
       checkAndProtect(message.url || window.location.href);
     }
     if (message.type === 'STORAGE_CHANGED') {
-      // Protected URL list or password changed; re-evaluate
-      checkAndProtect(window.location.href);
+      // Protected URL list, password, or language changed; re-evaluate
+      initLanguage().then(() => checkAndProtect(window.location.href));
+      return;
     }
     if (message.type === 'GET_UNLOCK_STATE') {
       // Popup queries whether this tab is currently unlocked
@@ -314,5 +332,5 @@
   // ── Init ────────────────────────────────────────────────────────────────────
 
   patchHistory();
-  checkAndProtect(window.location.href);
+  initLanguage().then(() => checkAndProtect(window.location.href));
 })();

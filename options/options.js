@@ -1,9 +1,31 @@
 (() => {
   'use strict';
 
+  // ── i18n ───────────────────────────────────────────────────────────────────
+
+  let lang = 'en';
+
+  function t(key) {
+    return window.BT_T(lang, key);
+  }
+
+  async function detectLanguage() {
+    const { language } = await chrome.storage.sync.get('language');
+    if (language) return language;
+    return navigator.language.startsWith('ko') ? 'ko' : 'en';
+  }
+
+  function applyTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+    });
+  }
+
   // ── Utilities ──────────────────────────────────────────────────────────────
 
-  // Entry helpers (backward-compat with old string format)
   function entryUrl(entry) {
     return typeof entry === 'string' ? entry : entry.url;
   }
@@ -42,6 +64,34 @@
     el.classList.add('hidden');
   }
 
+  // ── Language section ───────────────────────────────────────────────────────
+
+  async function initLanguageSection() {
+    const select = document.getElementById('language-select');
+    select.value = lang;
+
+    select.addEventListener('change', async () => {
+      lang = select.value;
+      await chrome.storage.sync.set({ language: lang });
+      applyTranslations();
+      // Notify all content scripts to reload language
+      const tabs = await chrome.tabs.query({});
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, { type: 'STORAGE_CHANGED' }).catch(() => {});
+      });
+      // Re-render dynamic sections to apply new language
+      const statusEl = document.getElementById('password-status');
+      const { passwordHash } = await chrome.storage.sync.get('passwordHash');
+      updatePasswordStatus(statusEl, !!passwordHash);
+      const { protectedUrls = [] } = await chrome.storage.sync.get('protectedUrls');
+      renderList(
+        document.getElementById('url-list'),
+        document.getElementById('empty-state'),
+        protectedUrls
+      );
+    });
+  }
+
   // ── Password section ────────────────────────────────────────────────────────
 
   async function initPasswordSection() {
@@ -52,7 +102,6 @@
     const errorEl = document.getElementById('password-error');
     const saveBtn = document.getElementById('save-password-btn');
 
-    // Show current status
     const { passwordHash } = await chrome.storage.sync.get('passwordHash');
     updatePasswordStatus(statusEl, !!passwordHash);
 
@@ -63,26 +112,15 @@
       const newVal = newInput.value;
       const confirmVal = confirmInput.value;
 
-      // Validate current password if one exists
       if (stored) {
-        if (!currentVal) {
-          return showError(errorEl, 'Enter your current password to make changes.');
-        }
+        if (!currentVal) return showError(errorEl, t('errEnterCurrent'));
         const currentHash = await sha256(currentVal);
-        if (currentHash !== stored) {
-          return showError(errorEl, 'Current password is incorrect.');
-        }
+        if (currentHash !== stored) return showError(errorEl, t('errCurrentIncorrect'));
       }
 
-      if (!newVal) {
-        return showError(errorEl, 'New password cannot be empty.');
-      }
-      if (newVal.length < 4) {
-        return showError(errorEl, 'Password must be at least 4 characters.');
-      }
-      if (newVal !== confirmVal) {
-        return showError(errorEl, 'Passwords do not match.');
-      }
+      if (!newVal)            return showError(errorEl, t('errNewEmpty'));
+      if (newVal.length < 4)  return showError(errorEl, t('errTooShort'));
+      if (newVal !== confirmVal) return showError(errorEl, t('errNoMatch'));
 
       const newHash = await sha256(newVal);
       await chrome.storage.sync.set({ passwordHash: newHash });
@@ -92,17 +130,17 @@
       confirmInput.value = '';
       updatePasswordStatus(statusEl, true);
 
-      saveBtn.textContent = '✓ Saved!';
-      setTimeout(() => { saveBtn.textContent = 'Save Password'; }, 2000);
+      saveBtn.textContent = t('saved');
+      setTimeout(() => { saveBtn.textContent = t('savePassword'); }, 2000);
     });
   }
 
   function updatePasswordStatus(el, isSet) {
     if (isSet) {
-      el.textContent = 'Password is set.';
+      el.textContent = t('passwordIsSet');
       el.className = 'status-banner set';
     } else {
-      el.textContent = 'No password set. All protected URLs are inaccessible until you set one.';
+      el.textContent = t('noPasswordSetWarning');
       el.className = 'status-banner unset';
     }
   }
@@ -117,11 +155,9 @@
     const listEl = document.getElementById('url-list');
     const emptyState = document.getElementById('empty-state');
 
-    // Load existing URLs
     const { protectedUrls = [] } = await chrome.storage.sync.get('protectedUrls');
     renderList(listEl, emptyState, protectedUrls);
 
-    // Fill from current tab
     useCurrentBtn.addEventListener('click', async () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab && tab.url) {
@@ -130,7 +166,6 @@
       }
     });
 
-    // Add URL
     addBtn.addEventListener('click', () => addUrl(urlInput, errorEl, listEl, emptyState));
     urlInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') addUrl(urlInput, errorEl, listEl, emptyState);
@@ -140,18 +175,18 @@
   async function addUrl(urlInput, errorEl, listEl, emptyState) {
     hideError(errorEl);
     const raw = urlInput.value.trim();
-    if (!raw) return showError(errorEl, 'Please enter a URL.');
+    if (!raw) return showError(errorEl, t('errEnterUrl'));
 
     let normalized;
     try {
       normalized = normalizeUrl(new URL(raw).href);
     } catch {
-      return showError(errorEl, 'Please enter a valid URL (starting with http:// or https://).');
+      return showError(errorEl, t('errInvalidUrl'));
     }
 
     const { protectedUrls = [] } = await chrome.storage.sync.get('protectedUrls');
     if (protectedUrls.some(e => normalizeUrl(entryUrl(e)) === normalized)) {
-      return showError(errorEl, 'This URL is already in the list.');
+      return showError(errorEl, t('errUrlExists'));
     }
 
     const updated = [...protectedUrls, { url: normalized, matchSubpaths: false }];
@@ -196,7 +231,7 @@
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
-      deleteBtn.textContent = 'Remove';
+      deleteBtn.textContent = t('removeUrl');
       deleteBtn.addEventListener('click', () => deleteUrl(entry, listEl, emptyState));
 
       li.appendChild(textWrap);
@@ -207,7 +242,10 @@
 
   // ── Init ────────────────────────────────────────────────────────────────────
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
+    lang = await detectLanguage();
+    applyTranslations();
+    await initLanguageSection();
     initPasswordSection();
     initUrlSection();
   });

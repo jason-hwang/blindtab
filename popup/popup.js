@@ -1,6 +1,31 @@
 (() => {
   'use strict';
 
+  // ── i18n ───────────────────────────────────────────────────────────────────
+
+  let lang = 'en';
+
+  function t(key) {
+    return window.BT_T(lang, key);
+  }
+
+  async function detectLanguage() {
+    const { language } = await chrome.storage.sync.get('language');
+    if (language) return language;
+    return navigator.language.startsWith('ko') ? 'ko' : 'en';
+  }
+
+  function applyStaticTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+    });
+  }
+
+  // ── URL helpers ────────────────────────────────────────────────────────────
+
   function normalizeUrl(url) {
     try {
       const u = new URL(url);
@@ -55,13 +80,17 @@
 
   async function removeProtection(tabId, currentUrl) {
     const { protectedUrls: current = [] } = await chrome.storage.sync.get('protectedUrls');
-    // Remove whichever entry covers currentUrl (exact or via subpath parent)
     const updated = current.filter(e => !isUrlMatch(e, currentUrl));
     await chrome.storage.sync.set({ protectedUrls: updated });
     chrome.tabs.sendMessage(tabId, { type: 'STORAGE_CHANGED' }).catch(() => {});
   }
 
+  // ── Init ───────────────────────────────────────────────────────────────────
+
   async function init() {
+    lang = await detectLanguage();
+    applyStaticTranslations();
+
     const urlDisplay = document.getElementById('current-url');
     const toggleBtn = document.getElementById('toggle-btn');
     const toggleLabel = document.getElementById('toggle-label');
@@ -75,6 +104,9 @@
     const authConfirmBtn = document.getElementById('auth-confirm-btn');
     const authError = document.getElementById('auth-error');
 
+    authPassword.placeholder = t('passwordPlaceholder');
+    urlDisplay.textContent = t('loading');
+
     // Open options page
     const openOptions = () => chrome.runtime.openOptionsPage();
     goOptions.addEventListener('click', (e) => { e.preventDefault(); openOptions(); });
@@ -83,7 +115,7 @@
     // Get active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.url) {
-      urlDisplay.textContent = 'Unable to read page URL.';
+      urlDisplay.textContent = t('unableToRead');
       return;
     }
 
@@ -105,7 +137,7 @@
     updateSubpathSection(subpathSection, isProtected);
     toggleBtn.disabled = false;
 
-    // ── Auth section: verify password then remove protection ─────────────────
+    // ── Auth section ─────────────────────────────────────────────────────────
 
     async function confirmRemoveWithAuth() {
       const password = authPassword.value;
@@ -116,21 +148,20 @@
 
       const { passwordHash: storedHash } = await chrome.storage.sync.get('passwordHash');
       if (!storedHash) {
-        authError.textContent = 'No password set.';
+        authError.textContent = t('noPasswordSet');
         authConfirmBtn.disabled = false;
         return;
       }
 
       const inputHash = await sha256(password);
       if (inputHash !== storedHash) {
-        authError.textContent = 'Incorrect password.';
+        authError.textContent = t('incorrectPassword');
         authPassword.value = '';
         authPassword.focus();
         authConfirmBtn.disabled = false;
         return;
       }
 
-      // Password correct: unlock overlay on page, then remove protection
       chrome.tabs.sendMessage(tab.id, { type: 'UNLOCK_AND_REMOVE_OVERLAY' }).catch(() => {});
       await removeProtection(tab.id, currentUrl);
 
@@ -152,7 +183,7 @@
       const { protectedUrls: current = [] } = await chrome.storage.sync.get('protectedUrls');
       const currentlyProtected = current.some(e => isUrlMatch(e, currentUrl));
 
-      // Adding protection — no auth needed
+      // Adding protection
       if (!currentlyProtected) {
         toggleBtn.disabled = true;
         const matchSubpaths = subpathCheckbox.checked;
@@ -166,7 +197,7 @@
         return;
       }
 
-      // Removing protection — check if page is currently locked
+      // Removing protection — check lock state
       const isUnlocked = await getTabUnlockState(tab.id);
       if (!isUnlocked) {
         authSection.classList.remove('hidden');
@@ -176,7 +207,6 @@
         return;
       }
 
-      // Page already unlocked — allow direct removal
       toggleBtn.disabled = true;
       await removeProtection(tab.id, currentUrl);
       updateButton(toggleBtn, toggleLabel, false);
@@ -184,6 +214,8 @@
       toggleBtn.disabled = false;
     });
   }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
   const ICON_LOCKED = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none"
     xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -205,10 +237,10 @@
   function updateButton(btn, label, isProtected) {
     if (isProtected) {
       btn.className = 'toggle-btn protected';
-      label.innerHTML = `${ICON_UNLOCKED}<span>Remove Protection</span>`;
+      label.innerHTML = `${ICON_UNLOCKED}<span>${t('removeProtection')}</span>`;
     } else {
       btn.className = 'toggle-btn unprotected';
-      label.innerHTML = `${ICON_LOCKED}<span>Protect This Page</span>`;
+      label.innerHTML = `${ICON_LOCKED}<span>${t('protectThisPage')}</span>`;
     }
   }
 

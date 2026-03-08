@@ -190,6 +190,24 @@ input::placeholder {
   white-space: nowrap;
 }
 
+.language-select {
+  padding: 8px 10px;
+  border: 1px solid #000000;
+  border-radius: 0;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-size: 12px;
+  color: #000000;
+  background: #ffffff;
+  cursor: pointer;
+  width: 100%;
+  max-width: 200px;
+}
+
+.language-select:focus {
+  outline: 2px solid #000000;
+  outline-offset: -2px;
+}
+
 .add-url-form {
   display: flex;
   gap: 6px;

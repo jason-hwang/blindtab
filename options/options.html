@@ -17,54 +17,75 @@
       </svg>
       <div>
         <h1>BlindTab</h1>
-        <p class="subtitle">Settings</p>
+        <p class="subtitle" data-i18n="settings">Settings</p>
       </div>
     </header>
 
+    <!-- Language Section -->
+    <section class="card">
+      <h2 data-i18n="languageSection">Language</h2>
+      <p class="section-desc" data-i18n="languageDesc">Choose the display language for BlindTab.</p>
+      <select id="language-select" class="language-select">
+        <option value="en">English</option>
+        <option value="ko">한국어</option>
+      </select>
+    </section>
+
     <!-- Password Section -->
     <section class="card">
-      <h2>Password</h2>
-      <div id="password-status" class="status-banner unset">
-        No password set. All protected URLs are inaccessible until you set one.
-      </div>
+      <h2 data-i18n="passwordSection">Password</h2>
+      <div id="password-status" class="status-banner unset"></div>
 
       <div class="form-group">
-        <label for="current-password">Current password</label>
-        <input type="password" id="current-password" placeholder="Leave blank if none set" autocomplete="current-password" />
+        <label for="current-password" data-i18n="currentPassword">Current password</label>
+        <input type="password" id="current-password"
+          data-i18n-placeholder="currentPasswordPh"
+          placeholder="Leave blank if none set"
+          autocomplete="current-password" />
       </div>
       <div class="form-group">
-        <label for="new-password">New password</label>
-        <input type="password" id="new-password" placeholder="Enter new password" autocomplete="new-password" />
+        <label for="new-password" data-i18n="newPassword">New password</label>
+        <input type="password" id="new-password"
+          data-i18n-placeholder="newPasswordPh"
+          placeholder="Enter new password"
+          autocomplete="new-password" />
       </div>
       <div class="form-group">
-        <label for="confirm-password">Confirm new password</label>
-        <input type="password" id="confirm-password" placeholder="Repeat new password" autocomplete="new-password" />
+        <label for="confirm-password" data-i18n="confirmNewPassword">Confirm new password</label>
+        <input type="password" id="confirm-password"
+          data-i18n-placeholder="repeatPasswordPh"
+          placeholder="Repeat new password"
+          autocomplete="new-password" />
       </div>
       <div id="password-error" class="error-msg hidden"></div>
-      <button id="save-password-btn" class="btn primary">Save Password</button>
+      <button id="save-password-btn" class="btn primary" data-i18n="savePassword">Save Password</button>
     </section>
 
     <!-- Protected URLs Section -->
     <section class="card">
-      <h2>Protected URLs</h2>
-      <p class="section-desc">Pages on this list will show a blur overlay until unlocked with your password.</p>
+      <h2 data-i18n="protectedUrlsSection">Protected URLs</h2>
+      <p class="section-desc" data-i18n="urlSectionDesc">Pages on this list will show a blur overlay until unlocked with your password.</p>
 
       <div class="add-url-form">
-        <input type="url" id="url-input" placeholder="https://example.com/secret-page" autocomplete="off" />
-        <button id="use-current-btn" class="btn secondary small" title="Fill with current tab URL">
-          Current tab
-        </button>
-        <button id="add-url-btn" class="btn primary small">Add</button>
+        <input type="url" id="url-input"
+          data-i18n-placeholder="urlPlaceholder"
+          placeholder="https://example.com/secret-page"
+          autocomplete="off" />
+        <button id="use-current-btn" class="btn secondary small"
+          title="Fill with current tab URL"
+          data-i18n="currentTab">Current tab</button>
+        <button id="add-url-btn" class="btn primary small" data-i18n="addUrl">Add</button>
       </div>
       <div id="url-error" class="error-msg hidden"></div>
 
       <div id="url-list-wrap">
-        <p id="empty-state" class="empty-state hidden">No protected URLs yet.</p>
+        <p id="empty-state" class="empty-state hidden" data-i18n="noProtectedUrls">No protected URLs yet.</p>
         <ul id="url-list" class="url-list"></ul>
       </div>
     </section>
   </div>
 
+  <script src="../shared/i18n.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
